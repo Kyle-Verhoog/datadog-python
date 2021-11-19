@@ -2,18 +2,13 @@
 
 _not for production use_
 
+See [`examples/comprehensive.py`](examples/comprehensive.py) for a mostly
+working example of the proposed API.
+
 ## 📈🐶 ❤️  🐍
 
-The Datadog Python products are great but the Python offering is fragmented.
 
-One has to configure and initialize 4 different clients (metrics, logs,
-tracing, profiling) to get a cohesive experience.
-
-It's time to unify and provide a great user experience out of the box for
-users.
-
-
-## proposed API
+### proposed API
 
 
 ```python
@@ -63,16 +58,6 @@ ddclient.flush_traces()
 ddclient.profiling_start()
 ddclient.profiling_stop()
 ddclient.flush_profiles()
-```
-
-
-### package structure
-
-```
-+datadog
-|
-|- DDClient
-|- DDConfig
 ```
 
 
