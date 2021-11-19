@@ -64,10 +64,19 @@ ddclient.flush_profiles()
 ### `ddtrace-run`
 
 I propose `datadog-run` which will install a default `DDClient`, initialized only via environment variable
-to `datadog.client`.
+to `datadog.client`. Essentially `sitecustomize.py` would just be:
+
+```python
+import datadog
+from datadog import DDConfig, DDClient
+datadog.client = DDClient(DDConfig())
+```
+
+This might not work as simply as this as a different set of defaults would probably be desired when
+using `datadog-run`. This maybe suggests that internally `DDConfig` should be parametrized with defaults.
 
 
-## open questions
+## open questions/concerns
 
 
 - What API is exposed for flushing data?
@@ -76,3 +85,7 @@ to `datadog.client`.
   - Must allow both automatic + manual strategies
     - Buffer size
     - Flush period
+- What to use to locate an agent?
+  - UDS vs HTTP(S) support
+  - URL is weird/not intuitive with unix sockets
+- Should config values store whether they are user defined?

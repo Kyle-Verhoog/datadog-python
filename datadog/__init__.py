@@ -20,6 +20,17 @@ class _Sentinel(object):
 _sentinel = _Sentinel()
 
 
+_DEFAULT_CONFIG = dict(
+    agent_url="http://localhost",
+    datadog_site="datadoghq.com",
+    tracing_enabled=True,
+    tracing_patch=False,
+    tracing_modules=["django", "redis", ...],
+    profiling_enabled=False,
+    runtime_metrics_enabled=False,
+)
+
+
 class DDConfig(object):
     def __init__(
         self,
@@ -37,10 +48,11 @@ class DDConfig(object):
         profiling_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         security_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         runtime_metrics_enabled=_sentinel,  # type: Union[_Sentinel, bool]
+        default_config=_DEFAULT_CONFIG,
     ):
         # type: (...) -> None
         if agent_url is _sentinel:
-            agent_url = os.getenv("DD_AGENT_URL", "http://localhost")
+            agent_url = os.getenv("DD_AGENT_URL", default_config["agent_url"])
         self.agent_url = agent_url
 
         if api_key is _sentinel:
@@ -50,7 +62,7 @@ class DDConfig(object):
         self.api_key = api_key
 
         if datadog_site is _sentinel:
-            datadog_site = os.getenv("DD_SITE", "datadoghq.com")
+            datadog_site = os.getenv("DD_SITE", default_config["datadog_site"])
         self.site = datadog_site
 
         if service is _sentinel:
@@ -62,7 +74,7 @@ class DDConfig(object):
         self.service = service
 
         if env is _sentinel:
-            env = os.getenv("DD_ENV", service)
+            env = os.getenv("DD_ENV", env)
         if env is _sentinel or not env:
             raise ValueError(
                 "An env must be set, refer to the documentation for unified service tagging here: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/"
@@ -79,7 +91,7 @@ class DDConfig(object):
 
         if tracing_enabled is _sentinel:
             tracing_enabled = ddtrace.utils.formats.asbool(
-                os.getenv("DD_TRACE_ENABLED", False)
+                os.getenv("DD_TRACE_ENABLED", default_config["tracing_enabled"])
             )
         self.tracing_enabled = tracing_enabled
 
@@ -90,14 +102,14 @@ class DDConfig(object):
 
         if tracing_patch is _sentinel:
             tracing_patch = ddtrace.utils.formats.asbool(
-                os.getenv("DD_TRACE_PATCH", False)
+                os.getenv("DD_TRACE_PATCH", default_config["tracing_patch"])
             )
         if tracing_patch:
             ddtrace.patch(*tracing_modules)
 
         if profiling_enabled is _sentinel:
             profiling_enabled = ddtrace.utils.formats.asbool(
-                os.getenv("DD_PROFILING_ENABLED", False)
+                os.getenv("DD_PROFILING_ENABLED", default_config["profiling_enabled"])
             )
         self.profiling_enabled = profiling_enabled
 
