@@ -2,7 +2,7 @@
 
 _not for production use_
 
-## 📈 ❤️  🐍
+## 📈🐶 ❤️  🐍
 
 The Datadog Python products are great but the Python offering is fragmented.
 
