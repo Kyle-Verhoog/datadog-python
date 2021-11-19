@@ -1,0 +1,88 @@
+from contextlib import contextmanager
+import time
+from typing import Callable
+from typing import List
+from typing import Literal
+from typing import Optional
+from typing import Tuple
+from typing import TypedDict
+from typing import Union
+
+import requests
+
+from ddtrace.internal.compat import time_ns
+
+
+Point = Tuple[int, Union[int, float]]
+Tags = List[str]
+
+
+class Metric(TypedDict):
+    metric: str
+    type: Literal["count", "gauge", "rate"]
+    points: List[Point]
+    tags: List[str]
+    interval: int
+
+
+class MetricsClient(object):
+    def __init__(self, site, api_key):
+        self._site = site
+        self._api_key = api_key
+        self._metrics = []  # type: List[Metric]
+
+    def count(self, name, count, interval=1, tags=None):
+        # type: (str, int, int, Optional[List[str]]) -> None
+        tags = tags or []
+        point = (int(time.time()), count)  # type: Point
+        metric = Metric(
+            metric=name,
+            type="count",
+            interval=interval,
+            points=[point],
+            tags=tags,
+        )
+        self._metrics.append(metric)
+
+    def gauge(self, name, val, tags=None):
+        # type: (str, Union[int, float], Optional[List[str]]) -> None
+        tags = tags or []
+        point = (int(time.time()), val)  # type: Point
+        metric = Metric(
+            metric=name,
+            type="gauge",
+            points=[point],
+            tags=tags,
+        )
+        self._metrics.append(metric)
+
+    @contextmanager
+    def _measure(self, name, tags):
+        start = time_ns()
+        yield
+        end = time_ns()
+        point = (int(time.time()), end - start)  # type: Point
+        metric = Metric(
+            metric=name,
+            type="dist",
+            points=[point],
+            tags=tags,
+        )
+        self._metrics.append(metric)
+
+    def measure(self, name, tags=None):
+        # type: (str, Optional[Tags]) -> Callable
+        return self._measure(name, tags)
+
+    def flush(self):
+        # type: () -> None
+        headers = {
+            "Content-Type": "text/json",
+            "DD-API-KEY": self._api_key,
+        }
+        data = {"series": self._metrics}
+        self._metrics = []
+        resp = requests.post(
+            "https://api.%s/api/v1/series" % self._site, headers=headers, json=data
+        )
+        resp.raise_for_status()
