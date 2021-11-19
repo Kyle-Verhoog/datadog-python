@@ -64,16 +64,20 @@ ddclient.flush_profiles()
 ### `ddtrace-run`
 
 I propose `datadog-run` which will install a default `DDClient`, initialized only via environment variable
-to `datadog.client`. Essentially `sitecustomize.py` would just be:
+to `datadog.client`. Essentially `sitecustomize.py` would just be something like:
 
 ```python
 import datadog
 from datadog import DDConfig, DDClient
-datadog.client = DDClient(DDConfig())
-```
 
-This might not work as simply as this as a different set of defaults would probably be desired when
-using `datadog-run`. This maybe suggests that internally `DDConfig` should be parametrized with defaults.
+
+_DEFAULT_CONFIG = dict(
+  tracing_patch=True,  # different from the default when using the library manually
+  # ... rest of defaults
+)
+
+datadog.client = DDClient(DDConfig(default_config=_DEFAULT_CONFIG))
+```
 
 
 ## open questions/concerns
