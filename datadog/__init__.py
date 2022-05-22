@@ -4,6 +4,7 @@ from typing import List, Tuple, Union
 
 import ddtrace
 from ddtrace.internal.writer import AgentWriter
+from ddtrace.internal.utils.formats import asbool, parse_tags_str
 from ddtrace.profiling import Profiler
 
 from ._metrics import MetricsClient
@@ -90,25 +91,23 @@ class DDConfig(object):
         self.version = service
 
         if tracing_enabled is _sentinel:
-            tracing_enabled = ddtrace.utils.formats.asbool(
+            tracing_enabled = asbool(
                 os.getenv("DD_TRACE_ENABLED", default_config["tracing_enabled"])
             )
         self.tracing_enabled = tracing_enabled
 
         if tracing_modules is _sentinel:
-            tracing_modules = ddtrace.utils.formats.parse_tags_str(
-                os.getenv("DD_PATCH_MODULES")
-            )
+            tracing_modules = parse_tags_str(os.getenv("DD_PATCH_MODULES"))
 
         if tracing_patch is _sentinel:
-            tracing_patch = ddtrace.utils.formats.asbool(
+            tracing_patch = asbool(
                 os.getenv("DD_TRACE_PATCH", default_config["tracing_patch"])
             )
         if tracing_patch:
             ddtrace.patch(*tracing_modules)
 
         if profiling_enabled is _sentinel:
-            profiling_enabled = ddtrace.utils.formats.asbool(
+            profiling_enabled = asbool(
                 os.getenv("DD_PROFILING_ENABLED", default_config["profiling_enabled"])
             )
         self.profiling_enabled = profiling_enabled
@@ -235,7 +234,7 @@ class DDClient(object):
         self._profiler.stop(*args, **kwargs)
 
     def flush_traces(self):
-        self._tracer.writer.flush_queue()
+        self._tracer.flush()
 
     def flush_metrics(self):
         self._metrics.flush()

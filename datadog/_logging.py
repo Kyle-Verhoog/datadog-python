@@ -5,7 +5,7 @@ import threading
 from typing import List
 from typing import TypedDict
 
-from ddtrace.compat import get_connection_response, httplib
+from ddtrace.internal.compat import get_connection_response, httplib
 from ddtrace.internal.periodic import PeriodicService
 
 logger = logging.getLogger(__name__)
