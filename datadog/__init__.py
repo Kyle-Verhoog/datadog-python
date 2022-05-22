@@ -6,6 +6,7 @@ import ddtrace
 from ddtrace.internal.writer import AgentWriter
 from ddtrace.internal.utils.formats import asbool, parse_tags_str
 from ddtrace.profiling import Profiler
+from ddtrace.runtime import RuntimeMetrics
 
 from ._metrics import MetricsClient
 from ._logging import LogWriterV1, LogEvent
@@ -112,6 +113,15 @@ class DDConfig(object):
             )
         self.profiling_enabled = profiling_enabled
 
+        if runtime_metrics_enabled is _sentinel:
+            runtime_metrics_enabled = asbool(
+                os.getenv(
+                    "DD_RUNTIME_METRICS_ENABLED",
+                    default_config["runtime_metrics_enabled"],
+                )
+            )
+        self.runtime_metrics_enabled = runtime_metrics_enabled
+
 
 class DDClient(object):
     def __init__(
@@ -149,6 +159,8 @@ class DDClient(object):
         )
         if config.profiling_enabled:
             self._profiler.start()
+        if config.runtime_metrics_enabled:
+            RuntimeMetrics.enable(tracer=self._tracer)
 
     def trace(self, *args, **kwargs):
         # type: (...) -> ddtrace.Span
