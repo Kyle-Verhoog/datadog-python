@@ -168,7 +168,7 @@ class DDClient(object):
 
     def patch(self, modules):
         # type: (...) -> None
-        ddtrace.monkey.patch(modules)
+        ddtrace._monkey.patch(modules)
 
     def _date_fmt(self, t):
         ct = time.localtime(t)
