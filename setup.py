@@ -15,6 +15,7 @@ setuptools.setup(
     install_requires=[
         "ddtrace",
         "requests",
+        "GitPython",
         "typing; python_version<'3.5'",
         "typing_extensions",
     ],

@@ -18,7 +18,8 @@ TraceSampleRule = Tuple[str, str, float]
 
 
 class _Sentinel(object):
-    pass
+    def __bool__(self):
+        return False
 
 
 _sentinel = _Sentinel()
@@ -44,6 +45,7 @@ class DDConfig(object):
         service=_sentinel,  # type: Union[_Sentinel, str]
         env=_sentinel,  # type: Union[_Sentinel, str]
         version=_sentinel,  # type: Union[_Sentinel, str]
+        version_use_git=_sentinel,  # type: Union[_Sentinel, bool]
         tracing_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         tracing_patch=_sentinel,  # type: Union[_Sentinel, bool]
         tracing_modules=_sentinel,  # type: Union[_Sentinel, List[str]]
@@ -87,13 +89,32 @@ class DDConfig(object):
             )
         self.env = env
 
-        if version is _sentinel:
+        if isinstance(version, _Sentinel):
             version = os.getenv("DD_VERSION", version)
-        if version is _sentinel or not version:
+        self.version = version
+
+        if isinstance(version_use_git, _Sentinel):
+            if "DD_VERSION_USE_GIT" in os.environ:
+                if asbool(os.getenv("DD_VERSION_USE_GIT")):
+                    version_use_git = True
+        if version_use_git:
+            import git
+
+            self.version = str(
+                git.Repo(search_parent_directories=True).head.object.hexsha[0:6]
+            )
+
+        if not isinstance(version, _Sentinel) and not isinstance(
+            version_use_git, _Sentinel
+        ):
+            raise ValueError(
+                "Ambiguous version! Cannot use both custom version %r and git version"
+                % self.version
+            )
+        if not self.version:
             raise ValueError(
                 "A version must be set, refer to the documentation for unified service tagging here: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/"
             )
-        self.version = version
 
         if isinstance(tracing_enabled, _Sentinel):
             tracing_enabled = asbool(

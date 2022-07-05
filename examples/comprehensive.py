@@ -8,7 +8,7 @@ ddcfg = DDConfig(
     agent_url="http://localhost",
     service="demo-svc",
     env="test",
-    version="0.01",
+    version_use_git=True,
     tracing_enabled=True,
 )
 
