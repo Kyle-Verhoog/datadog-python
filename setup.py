@@ -15,6 +15,14 @@ setuptools.setup(
     install_requires=[
         "ddtrace",
         "requests",
+        "typing; python_version<'3.5'",
+        "typing_extensions",
     ],
     python_requires=">=2.7",
+    tests_require=[
+        "mypy",
+        "black",
+        "types-requests",
+        "types-setuptools",
+    ],
 )

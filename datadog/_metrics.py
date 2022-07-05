@@ -11,6 +11,7 @@ from typing import Optional
 from typing import Tuple
 from typing import TypedDict
 from typing import Union
+from typing_extensions import NotRequired
 
 import requests
 
@@ -23,25 +24,25 @@ Point = Tuple[int, Union[int, float]]
 Tags = List[str]
 
 
-class Metric(TypedDict):
+class V1Metric(TypedDict):
     metric: str
     type: Literal["count", "gauge", "rate"]
     points: List[Point]
     tags: List[str]
-    interval: int
+    interval: NotRequired[int]
 
 
 class MetricsClient(object):
     def __init__(self, site, api_key):
         self._site = site
         self._api_key = api_key
-        self._metrics = []  # type: List[Metric]
+        self._metrics = []  # type: List[V1Metric]
 
     def count(self, name, count, interval=1, tags=None):
         # type: (str, int, int, Optional[List[str]]) -> None
         tags = tags or []
         point = (int(time.time()), count)  # type: Point
-        metric = Metric(
+        metric = V1Metric(
             metric=name,
             type="count",
             interval=interval,
@@ -54,7 +55,7 @@ class MetricsClient(object):
         # type: (str, Union[int, float], Optional[List[str]]) -> None
         tags = tags or []
         point = (int(time.time()), val)  # type: Point
-        metric = Metric(
+        metric = V1Metric(
             metric=name,
             type="gauge",
             points=[point],
@@ -68,7 +69,7 @@ class MetricsClient(object):
         yield
         end = time_ns()
         point = (int(time.time()), end - start)  # type: Point
-        metric = Metric(
+        metric = V1Metric(
             metric=name,
             type="dist",
             points=[point],

@@ -11,7 +11,7 @@ from ddtrace.internal.periodic import PeriodicService
 logger = logging.getLogger(__name__)
 
 
-class LogEvent(TypedDict):
+class V2LogEvent(TypedDict):
     """
     Note: these attribute names match the corresponding entry in the JSON payload.
     """
@@ -21,9 +21,11 @@ class LogEvent(TypedDict):
     service: str
     hostname: str
     ddsource: str
+    status: str
+    date: str
 
 
-class LogWriterV1(PeriodicService):
+class V2LogWriter(PeriodicService):
     """
     v1/input:
         - max payload size: 5MB
@@ -36,9 +38,9 @@ class LogWriterV1(PeriodicService):
 
     def __init__(self, site, api_key, interval, timeout):
         # type: (str, str, float, float) -> None
-        super(LogWriterV1, self).__init__(interval=interval)
+        super(V2LogWriter, self).__init__(interval=interval)
         self._lock = threading.Lock()
-        self._buffer = []  # type: List[LogEvent]
+        self._buffer = []  # type: List[V2LogEvent]
         self._timeout = timeout  # type: float
         self._api_key = api_key
         self._site = site
@@ -48,7 +50,7 @@ class LogWriterV1(PeriodicService):
         }
 
     def enqueue(self, log):
-        # type: (LogEvent) -> None
+        # type: (V2LogEvent) -> None
         with self._lock:
             self._buffer.append(log)
 

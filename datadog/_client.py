@@ -1,18 +1,20 @@
 import os
 import time
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import ddtrace
 from ddtrace.internal.writer import AgentWriter
-from ddtrace.internal.utils.formats import asbool, parse_tags_str
+from ddtrace.internal.utils.formats import asbool
 from ddtrace.profiling import Profiler
 from ddtrace.runtime import RuntimeMetrics
 
 from ._metrics import MetricsClient
-from ._logging import LogWriterV1, LogEvent
+from ._logging import V2LogWriter, V2LogEvent
 
 
 TraceSampleRule = Tuple[str, str, float]
+# recursive types aren't supported (yet): https://github.com/python/mypy/issues/731
+# _JSON = Union[str, float, int, List["_JSON"], Dict[str, "_JSON"], None]
 
 
 class _Sentinel(object):
@@ -30,7 +32,7 @@ _DEFAULT_CONFIG = dict(
     tracing_modules=["django", "redis", ...],
     profiling_enabled=False,
     runtime_metrics_enabled=False,
-)
+)  # type: Dict[str, Any]
 
 
 class DDConfig(object):
@@ -50,22 +52,24 @@ class DDConfig(object):
         profiling_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         security_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         runtime_metrics_enabled=_sentinel,  # type: Union[_Sentinel, bool]
-        default_config=_DEFAULT_CONFIG,  # type: Dict[str, str]
+        default_config=_DEFAULT_CONFIG,  # type: Dict[str, Any]
     ):
         # type: (...) -> None
-        if agent_url is _sentinel:
+        if isinstance(agent_url, _Sentinel):
             agent_url = os.getenv("DD_AGENT_URL", default_config["agent_url"])
         self.agent_url = agent_url
 
-        if api_key is _sentinel:
+        if isinstance(api_key, _Sentinel):
             api_key = os.getenv("DD_API_KEY", api_key)
-        if api_key is _sentinel:
+        if isinstance(api_key, _Sentinel):
             raise ValueError("An API key must be set")
         self.api_key = api_key
 
-        if datadog_site is _sentinel:
+        if isinstance(datadog_site, _Sentinel):
             datadog_site = os.getenv("DD_SITE", default_config["datadog_site"])
-        self.site = datadog_site
+        self.site = cast(
+            str, datadog_site
+        )  # for some reason mypy can't infer that this is a str
 
         if service is _sentinel:
             service = os.getenv("DD_SERVICE", service)
@@ -91,21 +95,24 @@ class DDConfig(object):
             )
         self.version = version
 
-        if tracing_enabled is _sentinel:
+        if isinstance(tracing_enabled, _Sentinel):
             tracing_enabled = asbool(
                 os.getenv("DD_TRACE_ENABLED", default_config["tracing_enabled"])
             )
         self.tracing_enabled = tracing_enabled
 
-        if tracing_modules is _sentinel:
-            tracing_modules = parse_tags_str(os.getenv("DD_PATCH_MODULES"))
+        if isinstance(tracing_modules, _Sentinel):
+            tracing_modules = (
+                os.getenv("DD_TRACE_MODULES", "").split(",")
+                or default_config["tracing_modules"]
+            )
 
-        if tracing_patch is _sentinel:
+        if isinstance(tracing_patch, _Sentinel):
             tracing_patch = asbool(
                 os.getenv("DD_TRACE_PATCH", default_config["tracing_patch"])
             )
         if tracing_patch:
-            ddtrace.patch(*tracing_modules)
+            ddtrace.patch(**{m: True for m in tracing_modules})
 
         if profiling_enabled is _sentinel:
             profiling_enabled = asbool(
@@ -138,7 +145,7 @@ class DDClient(object):
             enabled=config.tracing_enabled,
             writer=AgentWriter(agent_url="%s:%s" % (config.agent_url, 8126)),
         )
-        self._logger = LogWriterV1(
+        self._logger = V2LogWriter(
             site=config.site,
             api_key=config.api_key,
             interval=0.5,
@@ -190,7 +197,7 @@ class DDClient(object):
             "ddsource": "python",
             "status": log_level,
             "ddtags": "",
-        }  # type: LogEvent
+        }  # type: V2LogEvent
         tags = [] if tags is _sentinel else tags
         tags += [
             "env:%s" % self._config.env,
