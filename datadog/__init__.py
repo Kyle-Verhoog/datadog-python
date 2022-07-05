@@ -182,19 +182,23 @@ class DDClient(object):
         # (Literal["ERROR", "INFO", "DEBUG", "WARNING"], str, Optional[List[str]] ...) -> None
         t = time.time()
         date_fmt = self._date_fmt(t)
-        msg_fmt = "%s %s:%s" % (date_fmt, log_level, msg % tuple(*args))
         log = {
-            "message": msg_fmt,
+            "date": date_fmt,
+            "message": msg % tuple(*args),
             "hostname": ddtrace.internal.hostname.get_hostname(),
             "service": self._config.service,
             "ddsource": "python",
+            "status": log_level,
+            "ddtags": "",
         }  # type: LogEvent
         tags = [] if tags is _sentinel else tags
+        tags += [
+            "env:%s" % self._config.env,
+            "version:%s" % self._config.version,
+        ]
         span = self._tracer.current_span()
         if span:
             tags += [
-                "dd.service:%s" % self._config.service,
-                "dd.version:%s" % self._config.version,
                 "dd.trace_id:%s" % span.trace_id,
                 "dd.span_id:%s" % span.span_id,
             ]
