@@ -208,6 +208,12 @@ class DDClient(object):
     def info(self, msg, tags=_sentinel, *args):
         return self.log("INFO", msg, tags=tags, *args)
 
+    def warning(self, msg, tags=_sentinel, *args):
+        return self.log("WARN", msg, tags=tags, *args)
+
+    def error(self, msg, tags=_sentinel, *args):
+        return self.log("ERROR", msg, tags=tags, *args)
+
     def count(self, metric_name=_sentinel, count=1, tags=_sentinel):
         span = self._tracer.current_span()
         if metric_name is _sentinel:

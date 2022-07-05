@@ -1,4 +1,5 @@
 import random
+import time
 
 from datadog import DDConfig, DDClient
 
@@ -15,19 +16,21 @@ ddclient = DDClient(config=ddcfg)
 
 
 def do_work(quantity):
-    with ddclient.trace("do_work") as operation:
+    with ddclient.trace("do.work") as operation:
         ddclient.count()
         operation.set_tag("quantity", quantity)
         ddclient.info("about to do some serious work")
 
         with ddclient.measure("work"):
             for i in range(quantity):
-                pass
+                with ddclient.trace("sub.work"):
+                    time.sleep(random.randint(10, 1000) / 1000)
 
-        ddclient.info("did some serious work")
+        ddclient.warning("uhoh")
+        ddclient.error("whoops")
 
 
 ddclient.profiling_start()
-do_work(random.randint(1_000_000, 5_000_000))
+do_work(10)
 ddclient.profiling_stop()
 ddclient.flush()
