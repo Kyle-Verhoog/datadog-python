@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import logging
 import time
 from typing import Callable
 from typing import List
@@ -12,6 +13,8 @@ import requests
 
 from ddtrace.internal.compat import time_ns
 
+
+log = logging.getLogger(__name__)
 
 Point = Tuple[int, Union[int, float]]
 Tags = List[str]
@@ -86,3 +89,8 @@ class MetricsClient(object):
             "https://api.%s/api/v1/series" % self._site, headers=headers, json=data
         )
         resp.raise_for_status()
+        log.debug(
+            "flushed %d metrics: %s",
+            len(data["series"]),
+            ["%s<%s>" % (m["type"], m["metric"]) for m in data["series"]],
+        )
