@@ -1,3 +1,6 @@
+"""
+https://docs.datadoghq.com/api/latest/metrics/
+"""
 from contextlib import contextmanager
 import logging
 import time
