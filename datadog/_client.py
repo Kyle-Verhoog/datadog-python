@@ -89,7 +89,7 @@ class DDConfig(object):
             raise ValueError(
                 "A version must be set, refer to the documentation for unified service tagging here: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/"
             )
-        self.version = service
+        self.version = version
 
         if tracing_enabled is _sentinel:
             tracing_enabled = asbool(
