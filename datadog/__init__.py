@@ -255,16 +255,16 @@ class DDClient(object):
         # type: (...) -> None
         self._profiler.stop(*args, **kwargs)
 
-    def flush_traces(self):
+    def _flush_traces(self):
         self._tracer.flush()
 
-    def flush_metrics(self):
+    def _flush_metrics(self):
         self._metrics.flush()
 
-    def flush_logs(self):
+    def _flush_logs(self):
         self._logger.periodic()
 
     def flush(self):
-        self.flush_metrics()
-        self.flush_traces()
-        self.flush_logs()
+        self._flush_metrics()
+        self._flush_traces()
+        self._flush_logs()
