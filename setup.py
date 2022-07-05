@@ -11,6 +11,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="http://github.com/kyle-verhoog/datadog-python",
     packages=setuptools.find_packages(),
+    package_data={"datadog": ["py.typed"]},
     install_requires=[
         "ddtrace",
         "requests",
