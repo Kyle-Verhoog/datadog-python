@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from typing import Any, Dict, List, Tuple, Union, cast
@@ -7,6 +8,7 @@ from ddtrace.internal.writer import AgentWriter
 from ddtrace.internal.utils.formats import asbool
 from ddtrace.profiling import Profiler
 from ddtrace.runtime import RuntimeMetrics
+from ddtrace.tracer import DD_LOG_FORMAT
 
 from ._metrics import MetricsClient
 from ._logging import V2LogWriter, V2LogEvent
@@ -209,9 +211,8 @@ class DDClient(object):
     def log(self, log_level, msg, tags=_sentinel, *args):
         # (Literal["ERROR", "INFO", "DEBUG", "WARNING"], str, Optional[List[str]] ...) -> None
         t = time.time()
-        date_fmt = self._date_fmt(t)
         log = {
-            "date": date_fmt,
+            "timestamp": int(t),
             "message": msg % tuple(*args),
             "hostname": ddtrace.internal.hostname.get_hostname(),
             "service": self._config.service,
@@ -296,3 +297,37 @@ class DDClient(object):
         self._flush_metrics()
         self._flush_traces()
         self._flush_logs()
+
+    @property
+    def log_format(self):
+        # type: () -> str
+        return DD_LOG_FORMAT
+
+    def LogHandler(self):
+        # type: () -> logging.Handler
+        _self = self
+
+        class DDLogHandler(logging.Handler):
+            def emit(self, record):
+                record.__dict__["dd.service"] = _self._config.service
+                record.__dict__["dd.env"] = _self._config.env
+                record.__dict__["dd.version"] = _self._config.version
+                span = _self._tracer.current_span()
+                record.__dict__["dd.trace_id"] = span.trace_id if span else "0"
+                record.__dict__["dd.span_id"] = span.span_id if span else "0"
+                msg = self.format(record)
+                log = {
+                    "message": msg,
+                    "hostname": ddtrace.internal.hostname.get_hostname(),
+                    "ddsource": "python",
+                    "service": _self._config.service,
+                    "ddtags": "",
+                }  # type: V2LogEvent
+                tags = [
+                    "env:%s" % _self._config.env,
+                    "version:%s" % _self._config.version,
+                ]
+                log["ddtags"] = ",".join(tags)
+                _self._logger.enqueue(log)
+
+        return DDLogHandler()
