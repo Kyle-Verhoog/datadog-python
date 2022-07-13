@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Any, Dict, List, Tuple, Union, cast
+from typing import Any, Dict, List, Tuple, Type, Union, cast
 
 import ddtrace
 from ddtrace.internal.writer import AgentWriter
@@ -303,8 +303,9 @@ class DDClient(object):
         # type: () -> str
         return DD_LOG_FORMAT
 
+    @property
     def LogHandler(self):
-        # type: () -> logging.Handler
+        # type: () -> Type[logging.Handler]
         _self = self
 
         class DDLogHandler(logging.Handler):
@@ -330,4 +331,4 @@ class DDClient(object):
                 log["ddtags"] = ",".join(tags)
                 _self._logger.enqueue(log)
 
-        return DDLogHandler()
+        return DDLogHandler

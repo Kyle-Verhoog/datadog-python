@@ -3,8 +3,7 @@ import logging
 import sys
 import threading
 from typing import List
-from typing import TypedDict
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypedDict
 
 from ddtrace.internal.compat import get_connection_response, httplib
 from ddtrace.internal.periodic import PeriodicService
