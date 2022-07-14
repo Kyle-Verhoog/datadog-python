@@ -197,8 +197,8 @@ class DDClient(object):
         return self._tracer.trace(*args, **kwargs)
 
     def patch(self, modules):
-        # type: (...) -> None
-        ddtrace._monkey.patch(modules)
+        # type: (List[str]) -> None
+        ddtrace._monkey.patch(raise_errors=True, **{m: True for m in modules})
 
     def _date_fmt(self, t):
         ct = time.localtime(t)
