@@ -46,7 +46,7 @@ ddclient.exception()
 ddclient.info()
 ddclient.debug()
 log = ddclient.getLogger()
-ddclient.DDLogHandler()  # or datadog.DDLogHandler()
+ddclient.LogHandler()  # or datadog.DDLogHandler()
 ddclient.flush_logs()
 
 # tracing
