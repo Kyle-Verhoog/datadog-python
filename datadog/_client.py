@@ -196,6 +196,9 @@ class DDClient(object):
         # type: (...) -> ddtrace.Span
         return self._tracer.trace(*args, **kwargs)
 
+    def traced(self, *args, **kwargs):
+        return self._tracer.wrap(*args, **kwargs)
+
     def patch(self, modules):
         # type: (List[str]) -> None
         ddtrace._monkey.patch(raise_errors=True, **{m: True for m in modules})

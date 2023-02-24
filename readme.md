@@ -51,6 +51,7 @@ ddclient.flush_logs()
 
 # tracing
 ddclient.trace()
+ddclient.traced()
 ddclient.patch()
 ddclient.flush_traces()
 
