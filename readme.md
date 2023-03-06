@@ -7,8 +7,15 @@ working example of the proposed API.
 
 ## 📈🐶 ❤️  🐍
 
+<pre>
+ ✅ traces, metrics, logs, profiles, application security
+ ✅ unified configuration
+ ✅ trace-logs correlation by default
+ ✅ trace-aware metrics
+ ✅ typed and validated configuration
+</pre>
 
-### proposed API
+### API
 
 
 ```python
