@@ -3,7 +3,7 @@ import logging
 import sys
 import threading
 from typing import List
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
 
 from ddtrace.internal.compat import get_connection_response, httplib
 from ddtrace.internal.periodic import PeriodicService
@@ -21,8 +21,7 @@ class V2LogEvent(TypedDict):
     service: str
     hostname: str
     ddsource: str
-    status: NotRequired[str]
-    timestamp: NotRequired[str]
+    status: str
 
 
 class V2LogWriter(PeriodicService):

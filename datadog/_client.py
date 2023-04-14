@@ -1,7 +1,8 @@
+import inspect
 import logging
 import os
 import time
-from typing import Any, Dict, List, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 
 import ddtrace
 from ddtrace.internal.writer import AgentWriter
@@ -30,6 +31,7 @@ _sentinel = _Sentinel()
 _DEFAULT_CONFIG = dict(
     agent_url="http://localhost",
     datadog_site="datadoghq.com",
+    datadog_hostname=ddtrace.internal.hostname.get_hostname(),
     tracing_enabled=True,
     tracing_patch=False,
     tracing_modules=["django", "redis", ...],
@@ -44,6 +46,7 @@ class DDConfig(object):
         agent_url=_sentinel,  # type: Union[_Sentinel, str]
         api_key=_sentinel,  # type: Union[_Sentinel, str]
         datadog_site=_sentinel,  # type: Union[_Sentinel, str]
+        datadog_hostname=_sentinel,  # type: Union[_Sentinel, str]
         service=_sentinel,  # type: Union[_Sentinel, str]
         env=_sentinel,  # type: Union[_Sentinel, str]
         version=_sentinel,  # type: Union[_Sentinel, str]
@@ -74,6 +77,12 @@ class DDConfig(object):
         self.site = cast(
             str, datadog_site
         )  # for some reason mypy can't infer that this is a str
+
+        if isinstance(datadog_hostname, _Sentinel):
+            datadog_hostname = os.getenv(
+                "DD_HOSTNAME", default_config["datadog_hostname"]
+            )
+        self.datadog_hostname = cast(str, datadog_hostname)
 
         if service is _sentinel:
             service = os.getenv("DD_SERVICE", service)
@@ -211,40 +220,47 @@ class DDClient(object):
         s = default_msec_format % (s, (t - int(t)) * 1000)
         return s
 
-    def log(self, log_level, msg, tags=_sentinel, *args):
-        # (Literal["ERROR", "INFO", "DEBUG", "WARNING"], str, Optional[List[str]] ...) -> None
-        t = time.time()
+    def _dd_log(self, log_level, msg, tags=_sentinel):
+        # TODO: timestamp
         log = {
-            "timestamp": int(t),
-            "message": msg % tuple(*args),
-            "hostname": ddtrace.internal.hostname.get_hostname(),
+            "message": msg,
+            "hostname": self._config.datadog_hostname,
             "service": self._config.service,
             "ddsource": "python",
             "status": log_level,
             "ddtags": "",
-        }  # type: V2LogEvent
+        }
         tags = [] if tags is _sentinel else tags
         tags += [
             "env:%s" % self._config.env,
             "version:%s" % self._config.version,
         ]
+        log["ddtags"] = ",".join(tags)
         span = self._tracer.current_span()
         if span:
-            tags += [
-                "dd.trace_id:%s" % span.trace_id,
-                "dd.span_id:%s" % span.span_id,
-            ]
-        log["ddtags"] = ",".join(tags)
+            log["dd.trace_id"] = span.trace_id
+            log["dd.span_id"] = span.span_id
         self._logger.enqueue(log)
 
+    def _log(self, log_level, msg, tags=_sentinel, *args):
+        # type: (Literal["error", "info", "debug", "warn"], str, Optional[List[str]], ...) -> None
+        frm = inspect.stack()[2]
+        mod = inspect.getmodule(frm[0])
+        msg = "%s: %s" % (mod.__name__, msg % tuple(*args))
+        self._dd_log(log_level=log_level, msg=msg, tags=tags)
+
+    def log(self, log_level, msg, tags=_sentinel, *args):
+        # type: (Literal["error", "info", "debug", "warn"], str, Optional[List[str]], ...) -> None
+        return self._log(log_level=log_level, msg=msg, tags=tags, *args)
+
     def info(self, msg, tags=_sentinel, *args):
-        return self.log("INFO", msg, tags=tags, *args)
+        return self._log("info", msg, tags=tags, *args)
 
     def warning(self, msg, tags=_sentinel, *args):
-        return self.log("WARN", msg, tags=tags, *args)
+        return self._log("warn", msg, tags=tags, *args)
 
     def error(self, msg, tags=_sentinel, *args):
-        return self.log("ERROR", msg, tags=tags, *args)
+        return self._log("error", msg, tags=tags, *args)
 
     def count(self, metric_name=_sentinel, count=1, tags=_sentinel):
         span = self._tracer.current_span()
@@ -313,25 +329,12 @@ class DDClient(object):
 
         class DDLogHandler(logging.Handler):
             def emit(self, record):
-                record.__dict__["dd.service"] = _self._config.service
-                record.__dict__["dd.env"] = _self._config.env
-                record.__dict__["dd.version"] = _self._config.version
-                span = _self._tracer.current_span()
-                record.__dict__["dd.trace_id"] = span.trace_id if span else "0"
-                record.__dict__["dd.span_id"] = span.span_id if span else "0"
-                msg = self.format(record)
-                log = {
-                    "message": msg,
-                    "hostname": ddtrace.internal.hostname.get_hostname(),
-                    "ddsource": "python",
-                    "service": _self._config.service,
-                    "ddtags": "",
-                }  # type: V2LogEvent
-                tags = [
-                    "env:%s" % _self._config.env,
-                    "version:%s" % _self._config.version,
-                ]
-                log["ddtags"] = ",".join(tags)
-                _self._logger.enqueue(log)
+                # TODO: error info exc_info, exc_text, funcName
+                msg = "%s: %s" % (
+                    record.__dict__["name"],
+                    record.__dict__["msg"] % record.__dict__["args"],
+                )
+                level = record.__dict__["levelname"].lower()
+                _self._dd_log(msg=msg, log_level=level)
 
         return DDLogHandler

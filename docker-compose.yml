@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+    datadog_agent:
+        image: datadog/agent:latest
+        environment:
+            - DD_BIND_HOST=0.0.0.0
+            - DD_REMOTE_CONFIGURATION_ENABLED=true
+            - DD_SITE=${DD_SITE-datadoghq.com}
+            - DD_API_KEY=${DD_API_KEY}
+            - DD_REMOTE_CONFIGURATION_REFRESH_INTERVAL=20s
+            # - DD_APM_RECEIVER_SOCKET=/tmp/ddagent/trace.sock
+            - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+        ports:
+            - 8126:8126
+            - 8125:8125/udp
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /proc/:/host/proc/:ro
+            - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

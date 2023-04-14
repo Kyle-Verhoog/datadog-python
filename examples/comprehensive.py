@@ -19,7 +19,6 @@ ddclient = DDClient(config=ddcfg)
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format=ddclient.log_format,
     handlers=[
         ddclient.LogHandler(),
         logging.StreamHandler(),
