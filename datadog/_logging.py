@@ -2,26 +2,11 @@ import json
 import logging
 import sys
 import threading
-from typing import List
-from typing_extensions import TypedDict
 
 from ddtrace.internal.compat import get_connection_response, httplib
 from ddtrace.internal.periodic import PeriodicService
 
 logger = logging.getLogger(__name__)
-
-
-class V2LogEvent(TypedDict):
-    """
-    Note: these attribute names match the corresponding entry in the JSON payload.
-    """
-
-    message: str
-    ddtags: str
-    service: str
-    hostname: str
-    ddsource: str
-    status: str
 
 
 class V2LogWriter(PeriodicService):
@@ -39,7 +24,7 @@ class V2LogWriter(PeriodicService):
         # type: (str, str, float, float) -> None
         super(V2LogWriter, self).__init__(interval=interval)
         self._lock = threading.Lock()
-        self._buffer = []  # type: List[V2LogEvent]
+        self._buffer = []
         self._timeout = timeout  # type: float
         self._api_key = api_key
         self._site = site
@@ -49,7 +34,7 @@ class V2LogWriter(PeriodicService):
         }
 
     def enqueue(self, log):
-        # type: (V2LogEvent) -> None
+        # type: (dict) -> None
         with self._lock:
             self._buffer.append(log)
 

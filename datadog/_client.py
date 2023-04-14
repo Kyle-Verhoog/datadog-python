@@ -12,7 +12,7 @@ from ddtrace.runtime import RuntimeMetrics
 from ddtrace.tracer import DD_LOG_FORMAT
 
 from ._metrics import MetricsClient
-from ._logging import V2LogWriter, V2LogEvent
+from ._logging import V2LogWriter
 
 
 TraceSampleRule = Tuple[str, str, float]
@@ -211,14 +211,6 @@ class DDClient(object):
     def patch(self, modules):
         # type: (List[str]) -> None
         ddtrace._monkey.patch(raise_errors=True, **{m: True for m in modules})
-
-    def _date_fmt(self, t):
-        ct = time.localtime(t)
-        default_time_format = "%Y-%m-%d %H:%M:%S"
-        default_msec_format = "%s,%03d"
-        s = time.strftime(default_time_format, ct)
-        s = default_msec_format % (s, (t - int(t)) * 1000)
-        return s
 
     def _dd_log(self, log_level, msg, tags=_sentinel):
         # TODO: timestamp
