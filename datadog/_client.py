@@ -253,7 +253,8 @@ class DDAgent:
                     conn.close()
 
     def stop(self):
-        subprocess.run([shutil.which("docker"), "kill", "datadog-agent"], check=True)
+        if self._proc:
+            subprocess.run([shutil.which("docker"), "kill", "datadog-agent"], check=True, capture_output=True)
 
 
 class DDClient:
