@@ -7,6 +7,7 @@ log = logging.getLogger(__name__)
 
 ddcfg = DDConfig(
     agent_run=True,
+    agent_version="7.47.0",
     service="demo-svc",
     env="test",
     version_use_git=True,

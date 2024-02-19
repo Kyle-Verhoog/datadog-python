@@ -37,6 +37,7 @@ _sentinel = _Sentinel()
 _DEFAULT_CONFIG = dict(
     agent_hostname="localhost",
     agent_run=False,
+    agent_version="7.50.3",
     datadog_site="datadoghq.com",
     datadog_hostname=ddtrace.internal.hostname.get_hostname(),
     remote_configuration_enabled=True,
@@ -55,6 +56,7 @@ class DDConfig(object):
         self,
         agent_hostname=_sentinel,  # type: Union[_Sentinel, str]
         agent_run=_sentinel,  # type: Union[_Sentinel, bool]
+        agent_version=_sentinel,  # type: Union[_Sentinel, str]
         api_key=_sentinel,  # type: Union[_Sentinel, str]
         datadog_site=_sentinel,  # type: Union[_Sentinel, str]
         datadog_hostname=_sentinel,  # type: Union[_Sentinel, str]
@@ -81,6 +83,11 @@ class DDConfig(object):
                 "DD_AGENT_HOST", default_config["agent_hostname"]
             )
         self.agent_hostname = agent_hostname
+        if isinstance(agent_version, _Sentinel):
+            agent_version = os.getenv(
+                "DD_AGENT_VERSION", default_config["agent_version"]
+            )
+        self.agent_version = agent_version
 
         if isinstance(agent_run, _Sentinel):
             agent_run = asbool(os.getenv("DD_AGENT_RUN", default_config["agent_run"]))
@@ -298,7 +305,7 @@ class DDClient:
         if config.runtime_metrics_enabled:
             RuntimeMetrics.enable(tracer=self._tracer)
 
-        self._agent = DDAgent(version="latest", config=config)
+        self._agent = DDAgent(version=config.agent_version, config=config)
         if config.agent_run:
             self._agent.start(wait=True)
             logger.info("started Datadog agent")
