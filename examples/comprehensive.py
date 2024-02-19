@@ -8,7 +8,6 @@ from datadog import DDConfig, DDClient
 log = logging.getLogger(__name__)
 
 ddcfg = DDConfig(
-    agent_url="http://localhost",
     service="demo-svc",
     env="test",
     version_use_git=True,

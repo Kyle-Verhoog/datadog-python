@@ -13,7 +13,7 @@ from ddtrace.internal.writer import AgentWriter
 from ddtrace.internal.utils.formats import asbool
 from ddtrace.profiling import Profiler
 from ddtrace.runtime import RuntimeMetrics
-from ddtrace.tracer import DD_LOG_FORMAT
+from ddtrace._logger import DD_LOG_FORMAT
 
 from ._metrics import MetricsClient
 from ._logging import V2LogWriter
@@ -274,6 +274,7 @@ class DDClient:
         ddtrace.config.service = config.service
         ddtrace.config.env = config.env
         ddtrace.config.version = config.version
+        ddtrace.config._128_bit_trace_id_enabled = False
         self._tracer = ddtrace.Tracer()
         self._tracer.configure(
             enabled=config.tracing_enabled,
