@@ -13,7 +13,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     package_data={"datadog": ["py.typed"]},
     install_requires=[
-        "ddtrace==1.8.0",
+        "ddtrace==2.6.3",
         "requests",
         "GitPython",
         "typing; python_version<'3.5'",
