@@ -310,6 +310,12 @@ class DDClient:
             self._agent.start(wait=True)
             logger.info("started Datadog agent")
 
+        if config.remote_configuration_enabled:
+            from ddtrace.internal.remoteconfig.worker import remoteconfig_poller
+
+            remoteconfig_poller.enable()
+            ddtrace.config.enable_remote_configuration()
+
     def trace(self, *args, **kwargs):
         # type: (...) -> ddtrace.Span
         return self._tracer.trace(*args, **kwargs)
