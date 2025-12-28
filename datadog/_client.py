@@ -228,8 +228,8 @@ class DDAgent:
             "--name=datadog-agent",
             "--detach",
             "--rm",
-            "--publish=8126:8126",
-            "--publish=8125:8125",
+            f"--publish=8126:{self._config.tracing_port}",
+            f"--publish=8125:{self._config.metrics_port}",
             "--volume=/var/run/docker.sock:/var/run/docker.sock",
             "--volume=/proc/:/host/proc/:ro",
             "--volume=/sys/fs/cgroup:/host/sys/fs/cgroup:ro",
@@ -242,7 +242,10 @@ class DDAgent:
             "datadog/agent:%s" % self._version,
         ]
         logger.debug("starting agent with command %r", " ".join(docker_cmd))
-        subprocess.run(docker_cmd, check=True, capture_output=True)
+        try:
+            self._proc = subprocess.run(docker_cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError("Failed to start Datadog Agent. Likely it is already running! Remove the agent_run=True setting if the Agent is being managed separately.") from e
         if wait:
             while True:
                 conn = httplib.HTTPConnection(
