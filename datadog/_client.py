@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 
 
 import ddtrace
-from ddtrace.internal.compat import get_connection_response, httplib
+from ddtrace.internal.http import HTTPConnection
 from ddtrace.internal.writer import AgentWriter
 from ddtrace.internal.utils.formats import asbool
 from ddtrace.profiling import Profiler
@@ -37,7 +37,7 @@ _sentinel = _Sentinel()
 _DEFAULT_CONFIG = dict(
     agent_hostname="localhost",
     agent_run=False,
-    agent_version="7.50.3",
+    agent_version="7.73.2",
     datadog_site="datadoghq.com",
     datadog_hostname=ddtrace.internal.hostname.get_hostname(),
     remote_configuration_enabled=True,
@@ -248,12 +248,12 @@ class DDAgent:
             raise RuntimeError("Failed to start Datadog Agent. Likely it is already running! Remove the agent_run=True setting if the Agent is being managed separately.") from e
         if wait:
             while True:
-                conn = httplib.HTTPConnection(
+                conn = HTTPConnection(
                     self._config.agent_hostname, self._config.tracing_port, timeout=1.0
                 )
                 try:
                     conn.request("GET", "/info", {}, {})
-                    resp = get_connection_response(conn)
+                    resp = conn.getresponse()
                 except Exception:
                     time.sleep(0.01)
                 else:
@@ -278,13 +278,11 @@ class DDClient:
         ddtrace.config.env = config.env
         ddtrace.config.version = config.version
         ddtrace.config._128_bit_trace_id_enabled = False
-        self._tracer = ddtrace.Tracer()
-        self._tracer.configure(
-            enabled=config.tracing_enabled,
-            writer=AgentWriter(
-                agent_url="http://%s:%s" % (config.agent_hostname, config.tracing_port)
-            ),
-        )
+        ddtrace.config.trace_agent_host = config.agent_hostname
+        ddtrace.config.trace_agent_port = config.tracing_port
+        ddtrace.config._remote_config_enabled = config.remote_configuration_enabled
+        self._tracer = ddtrace.tracer
+        self._tracer.configure(apm_tracing_disabled=not config.tracing_enabled)
         self._logger = V2LogWriter(
             site=config.site,
             api_key=config.api_key,
@@ -318,7 +316,6 @@ class DDClient:
             from ddtrace.internal.remoteconfig.worker import remoteconfig_poller
 
             remoteconfig_poller.enable()
-            ddtrace.config.enable_remote_configuration()
 
     def trace(self, *args, **kwargs):
         # type: (...) -> ddtrace.Span

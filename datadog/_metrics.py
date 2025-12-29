@@ -15,8 +15,6 @@ from typing_extensions import NotRequired
 
 import requests
 
-from ddtrace.internal.compat import time_ns
-
 
 log = logging.getLogger(__name__)
 
@@ -65,9 +63,9 @@ class MetricsClient(object):
 
     @contextmanager
     def _measure(self, name, tags):
-        start = time_ns()
+        start = time.time_ns()
         yield
-        end = time_ns()
+        end = time.time_ns()
         point = (int(time.time()), end - start)  # type: Point
         metric = V1Metric(
             metric=name,

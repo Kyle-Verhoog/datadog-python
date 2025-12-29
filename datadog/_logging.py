@@ -3,7 +3,7 @@ import logging
 import sys
 import threading
 
-from ddtrace.internal.compat import get_connection_response, httplib
+from ddtrace.internal.http import httplib
 from ddtrace.internal.periodic import PeriodicService
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class V2LogWriter(PeriodicService):
         )
         try:
             conn.request("POST", "/api/v2/logs", payload, self._headers)
-            resp = get_connection_response(conn)
+            resp = conn.getresponse()
             if resp.status >= 300:
                 print(
                     "ddlogs error: %s %s %s" % (resp.status, resp.read(), payload),
