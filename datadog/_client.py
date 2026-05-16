@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 
 import ddtrace
 from ddtrace.internal.http import HTTPConnection
-from ddtrace.internal.writer import AgentWriter
 from ddtrace.internal.utils.formats import asbool
 from ddtrace.profiling import Profiler
 from ddtrace.runtime import RuntimeMetrics
@@ -48,6 +47,9 @@ _DEFAULT_CONFIG = dict(
     tracing_modules=["django", "redis", ...],
     profiling_enabled=False,
     runtime_metrics_enabled=False,
+    llmobs_enabled=False,
+    llmobs_agentless_enabled=False,
+    llmobs_integrations_enabled=True,
 )  # type: Dict[str, Any]
 
 
@@ -75,6 +77,10 @@ class DDConfig(object):
         profiling_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         security_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         runtime_metrics_enabled=_sentinel,  # type: Union[_Sentinel, bool]
+        llmobs_enabled=_sentinel,  # type: Union[_Sentinel, bool]
+        llmobs_ml_app=_sentinel,  # type: Union[_Sentinel, str]
+        llmobs_agentless_enabled=_sentinel,  # type: Union[_Sentinel, bool]
+        llmobs_integrations_enabled=_sentinel,  # type: Union[_Sentinel, bool]
         default_config=_DEFAULT_CONFIG,  # type: Dict[str, Any]
     ):
         # type: (...) -> None
@@ -207,6 +213,34 @@ class DDConfig(object):
             )
         self.runtime_metrics_enabled = runtime_metrics_enabled
 
+        if isinstance(llmobs_enabled, _Sentinel):
+            llmobs_enabled = asbool(
+                os.getenv("DD_LLMOBS_ENABLED", default_config["llmobs_enabled"])
+            )
+        self.llmobs_enabled = llmobs_enabled
+
+        if isinstance(llmobs_ml_app, _Sentinel):
+            llmobs_ml_app = os.getenv("DD_LLMOBS_ML_APP", self.service)
+        self.llmobs_ml_app = llmobs_ml_app
+
+        if isinstance(llmobs_agentless_enabled, _Sentinel):
+            llmobs_agentless_enabled = asbool(
+                os.getenv(
+                    "DD_LLMOBS_AGENTLESS_ENABLED",
+                    default_config["llmobs_agentless_enabled"],
+                )
+            )
+        self.llmobs_agentless_enabled = llmobs_agentless_enabled
+
+        if isinstance(llmobs_integrations_enabled, _Sentinel):
+            llmobs_integrations_enabled = asbool(
+                os.getenv(
+                    "DD_LLMOBS_INTEGRATIONS_ENABLED",
+                    default_config["llmobs_integrations_enabled"],
+                )
+            )
+        self.llmobs_integrations_enabled = llmobs_integrations_enabled
+
 
 class DDAgent:
     def __init__(self, version: str, config: DDConfig):
@@ -317,6 +351,21 @@ class DDClient:
 
             remoteconfig_poller.enable()
 
+        self._llmobs = None  # type: Optional[Any]
+        if config.llmobs_enabled:
+            from ddtrace.llmobs import LLMObs
+
+            LLMObs.enable(
+                ml_app=config.llmobs_ml_app,
+                integrations_enabled=config.llmobs_integrations_enabled,
+                agentless_enabled=config.llmobs_agentless_enabled,
+                site=config.site,
+                api_key=config.api_key,
+                service=config.service,
+                env=config.env,
+            )
+            self._llmobs = LLMObs
+
     def trace(self, *args, **kwargs):
         # type: (...) -> ddtrace.Span
         return self._tracer.trace(*args, **kwargs)
@@ -327,6 +376,71 @@ class DDClient:
     def patch(self, modules):
         # type: (List[str]) -> None
         ddtrace._monkey.patch(raise_errors=True, **{m: True for m in modules})
+
+    def _require_llmobs(self):
+        if self._llmobs is None:
+            raise RuntimeError(
+                "LLM Observability is not enabled. Pass llmobs_enabled=True "
+                "to DDConfig (or set DD_LLMOBS_ENABLED=1) to use this API."
+            )
+        return self._llmobs
+
+    # -- LLM Observability decorators ---------------------------------
+    # Use as ``@ddclient.workflow(name="…")`` / ``@ddclient.llm(...)`` etc.
+    # Each proxies to ``ddtrace.llmobs.decorators.<kind>``, which produces
+    # the LLM Obs span of the corresponding kind around the wrapped call.
+
+    def llm(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.llm(*args, **kwargs)
+
+    def workflow(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.workflow(*args, **kwargs)
+
+    def task(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.task(*args, **kwargs)
+
+    def tool(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.tool(*args, **kwargs)
+
+    def llm_agent(self, *args, **kwargs):
+        # Named ``llm_agent`` (not ``agent``) to avoid colliding with
+        # ``DDClient._agent`` (the embedded Datadog Agent runner).
+        from ddtrace.llmobs import decorators
+
+        return decorators.agent(*args, **kwargs)
+
+    def embedding(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.embedding(*args, **kwargs)
+
+    def retrieval(self, *args, **kwargs):
+        from ddtrace.llmobs import decorators
+
+        return decorators.retrieval(*args, **kwargs)
+
+    # -- LLM Observability annotation / lifecycle ---------------------
+
+    def annotate(self, *args, **kwargs):
+        # type: (...) -> None
+        self._require_llmobs().annotate(*args, **kwargs)
+
+    def annotation_context(self, *args, **kwargs):
+        return self._require_llmobs().annotation_context(*args, **kwargs)
+
+    def submit_evaluation(self, *args, **kwargs):
+        return self._require_llmobs().submit_evaluation(*args, **kwargs)
+
+    def export_span(self, *args, **kwargs):
+        return self._require_llmobs().export_span(*args, **kwargs)
 
     def _dd_log(self, log_level, msg, tags=_sentinel):
         # TODO: timestamp
@@ -424,6 +538,8 @@ class DDClient:
         self._flush_metrics()
         self._flush_traces()
         self._flush_logs()
+        if self._llmobs is not None:
+            self._llmobs.flush()
 
     @property
     def log_format(self):
