@@ -356,6 +356,7 @@ class DDClient:
             from ddtrace.llmobs import LLMObs
 
             LLMObs.enable(
+                # deprecated in ddtrace 4.x in favour of agent_service, removed in 5.0
                 ml_app=config.llmobs_ml_app,
                 integrations_enabled=config.llmobs_integrations_enabled,
                 agentless_enabled=config.llmobs_agentless_enabled,
