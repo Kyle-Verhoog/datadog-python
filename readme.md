@@ -39,6 +39,8 @@ ddcfg = DDConfig(
         runtime_metrics_enabled=True,
         llmobs_enabled=True,
         llmobs_ml_app="my-python-service",
+        llmobs_project_name="my-project",     # experiments/datasets live in a project
+        # llmobs_app_key="...",                 # required by the eval APIs
         # llmobs_agentless_enabled=True,        # send straight to Datadog if no local agent
         # llmobs_integrations_enabled=True,     # auto-instrument openai/anthropic/etc. (default)
 )
@@ -76,9 +78,20 @@ ddclient.flush_profiles()
 @ddclient.llm(model_name="gpt-4o-mini")   # decorator (also: .embedding, .retrieval, .llm_agent)
 ddclient.annotate(input_data=..., output_data=..., metadata=..., tags=...)
 ddclient.annotation_context(...)
-ddclient.submit_evaluation(span_context=..., label=..., value=...)
 ddclient.export_span(span)
 ddclient.flush()                          # also flushes llm obs
+
+# evaluations
+ddclient.submit_evaluation(label="relevance", value=0.9)
+ddclient.get_spans(...)                   # find spans to evaluate offline
+ddclient.publish_evaluator(evaluator)     # let Datadog run it on live spans
+ddclient.create_dataset(name=..., records=[...])
+ddclient.create_dataset_from_csv(csv_path=..., name=..., input_data_columns=[...])
+ddclient.pull_dataset(name=...)
+ddclient.experiment(name=..., task=..., dataset=..., evaluators=[...])
+ddclient.async_experiment(...)            # for a coroutine task
+ddclient.run_experiment(...)              # build + run, returns results
+ddclient.pull_experiment(experiment_id)
 ```
 
 
@@ -134,6 +147,56 @@ def generate(question, docs):
 `agent` to avoid colliding with `agent_run=` / the embedded Datadog
 Agent runner. See [`examples/llmobs.py`](examples/llmobs.py) for an
 end-to-end run.
+
+
+### evaluations
+
+Scoring what the app produced is part of observing it, so evaluations are
+client methods too. `metric_type` is inferred from the value and the
+evaluation attaches to the span being traced, which makes the common case a
+one-liner:
+
+```python
+@ddclient.workflow(name="rag.answer")
+def answer(question: str) -> str:
+    output = generate(question)
+    ddclient.submit_evaluation("relevance", 0.92)               # score
+    ddclient.submit_evaluation("tone", "formal")                # categorical
+    ddclient.submit_evaluation("grounded", True,                # boolean
+                               assessment="pass",
+                               reasoning="every claim is in the docs")
+    return output
+```
+
+A span from another process is joined by handing back what `export_span()`
+produced, or by a tag it carries (`span_with_tag_value=`).
+
+Experiments run a task over a dataset and score every row:
+
+```python
+from datadog.llmobs import BaseEvaluator, EvaluatorContext, EvaluatorResult
+
+
+class AnswerLength(BaseEvaluator):
+    def evaluate(self, context: EvaluatorContext):
+        return EvaluatorResult(value=len(str(context.output_data)))
+
+
+dataset = ddclient.create_dataset(name="cities", records=[...])
+results = ddclient.run_experiment(
+    name="city-lookup",
+    task=task,
+    dataset=dataset,
+    evaluators=[AnswerLength()],
+)
+```
+
+Datasets and experiments read and write through the Datadog API, so they
+need an app key (`llmobs_app_key=` or `DD_APP_KEY`) on top of the api key,
+and they organize under `llmobs_project_name=` (or `DD_LLMOBS_PROJECT_NAME`).
+Evaluator base classes, the built-in evaluators, the llm-as-a-judge helpers
+and the dataset types are re-exported from `datadog.llmobs`, so evaluator
+code never imports `ddtrace` itself. See [`examples/evals.py`](examples/evals.py).
 
 
 ## open questions/concerns
